@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cmath>
 
 #include "controller.hh"
 #include "timestamp.hh"
@@ -8,10 +9,22 @@ using namespace std;
 /* Default constructor */
 Controller::Controller( const bool debug )
   : debug_( debug ),
-    window_size_( 50 ),
+    window_size_( 1 ),
+    ssthresh_( 16 ),
+    congestion_avoidance_ack_count_( 0 ),
+    estimated_rtt_( 0 ),
+    dev_rtt_( 0 ),
+    has_rtt_sample_( false ),
     has_last_ack_( false ),
     last_ack_( 0 )
 {}
+
+void Controller::reduce_window()
+{
+  ssthresh_ = window_size_ > 1 ? window_size_ / 2 : 1;
+  window_size_ = 1;
+  congestion_avoidance_ack_count_ = 0;
+}
 
 /* Get current window size, in datagrams */
 unsigned int Controller::window_size()
@@ -35,10 +48,7 @@ void Controller::datagram_was_sent( const uint64_t sequence_number,
 				    /* datagram was sent because of a timeout */ )
 {
   if ( after_timeout ) {
-    if ( window_size_ > 1 ) {
-      window_size_ /= 2;
-    }
-
+    reduce_window();
     cout << "time out" << endl;
   }
 
@@ -58,10 +68,40 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
 			       const uint64_t timestamp_ack_received )
                                /* when the ack was received (by sender) */
 {
-  /* Default: take no action */
+  const bool duplicate_ack = has_last_ack_
+    and sequence_number_acked == last_ack_;
 
-  if ( has_last_ack_ and sequence_number_acked == last_ack_ ) {
+  if ( duplicate_ack ) {
     cout << "got same ack:" << sequence_number_acked << endl;
+    reduce_window();
+  } else {
+    if ( timestamp_ack_received >= send_timestamp_acked ) {
+      const double sample_rtt
+        = timestamp_ack_received - send_timestamp_acked;
+
+      if ( not has_rtt_sample_ ) {
+        estimated_rtt_ = sample_rtt;
+        dev_rtt_ = sample_rtt / 2;
+        has_rtt_sample_ = true;
+      } else {
+        estimated_rtt_ = 0.875 * estimated_rtt_
+          + 0.125 * sample_rtt;
+        dev_rtt_ = 0.75 * dev_rtt_
+          + 0.25 * fabs( sample_rtt - estimated_rtt_ );
+      }
+    }
+
+    if ( window_size_ < ssthresh_ ) {
+      /* Slow start: one new ACK increases cwnd by one datagram. */
+      window_size_++;
+    } else {
+      /* Congestion avoidance: increase by one per window of new ACKs. */
+      congestion_avoidance_ack_count_++;
+      if ( congestion_avoidance_ack_count_ >= window_size_ ) {
+        window_size_++;
+        congestion_avoidance_ack_count_ = 0;
+      }
+    }
   }
 
   last_ack_ = sequence_number_acked;
@@ -80,5 +120,10 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
    before sending one more datagram */
 unsigned int Controller::timeout_ms()
 {
-  return 1000; /* timeout of one second */
+  if ( not has_rtt_sample_ ) {
+    return 1000; /* default until the first RTT sample arrives */
+  }
+
+  const double rto = estimated_rtt_ + 4 * dev_rtt_;
+  return rto < 1 ? 1 : static_cast<unsigned int>( ceil( rto ) );
 }

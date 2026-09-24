@@ -10,8 +10,15 @@ class Controller
 private:
   bool debug_; /* Enables debugging output */
   unsigned int window_size_;
+  unsigned int ssthresh_;
+  unsigned int congestion_avoidance_ack_count_;
+  double estimated_rtt_;
+  double dev_rtt_;
+  bool has_rtt_sample_;
   bool has_last_ack_;
   uint64_t last_ack_;
+
+  void reduce_window();
 
 public:
   /* Public interface for the congestion controller */
