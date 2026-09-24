@@ -40,12 +40,12 @@ int main( int argc, char *argv[] )
     const UDPSocket::received_datagram recd = socket.recv();
     ContestMessage message = recd.payload;
 
-    cerr << "Received message: message_type="
-         << ( message.is_ack() ? "ACK" : "DATA" )
-         << ", sequence_number=" << message.header.sequence_number
-         << ", send_timestamp=" << message.header.send_timestamp
-         << ", payload_length=" << message.payload.length()
-         << endl;
+    // cerr << "Received message: message_type="
+    //      << ( message.is_ack() ? "ACK" : "DATA" )
+    //      << ", sequence_number=" << message.header.sequence_number
+    //      << ", send_timestamp=" << message.header.send_timestamp
+    //      << ", payload_length=" << message.payload.length()
+    //      << endl;
 
     packets_since_last_ack++;
 
