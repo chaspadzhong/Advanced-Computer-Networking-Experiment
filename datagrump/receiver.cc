@@ -32,8 +32,10 @@ int main( int argc, char *argv[] )
   cerr << "Listening on " << socket.local_address().to_string() << endl;
 
   uint64_t sequence_number = 0;
+  const uint64_t ack_interval = 2;
+  uint64_t packets_since_last_ack = 0;
 
-  /* Loop and acknowledge every incoming datagram back to its source */
+  /* Loop and acknowledge every two incoming datagrams back to their source */
   while ( true ) {
     const UDPSocket::received_datagram recd = socket.recv();
     ContestMessage message = recd.payload;
@@ -45,6 +47,12 @@ int main( int argc, char *argv[] )
          << ", payload_length=" << message.payload.length()
          << endl;
 
+    packets_since_last_ack++;
+
+    if ( packets_since_last_ack < ack_interval ) {
+      continue;
+    }
+
     /* assemble the acknowledgment */
     message.transform_into_ack( sequence_number++, recd.timestamp );
 
@@ -53,6 +61,8 @@ int main( int argc, char *argv[] )
 
     /* send the ack */
     socket.sendto( recd.source_address, message.to_string() );
+
+    packets_since_last_ack = 0;
   }
 
   return EXIT_SUCCESS;
