@@ -34,11 +34,21 @@ int main( int argc, char *argv[] )
   uint64_t sequence_number = 0;
   const uint64_t ack_interval = 2;
   uint64_t packets_since_last_ack = 0;
+  uint64_t next_expected_sequence_number = 0;
+  uint64_t last_in_order_sequence_number = uint64_t( -1 );
 
   /* Loop and acknowledge every two incoming datagrams back to their source */
   while ( true ) {
     const UDPSocket::received_datagram recd = socket.recv();
     ContestMessage message = recd.payload;
+
+    if ( message.header.sequence_number == next_expected_sequence_number ) {
+      last_in_order_sequence_number = message.header.sequence_number;
+      next_expected_sequence_number++;
+    } else {
+      /* Acknowledge the last contiguous packet to create a duplicate ACK. */
+      message.header.sequence_number = last_in_order_sequence_number;
+    }
 
     // cerr << "Received message: message_type="
     //      << ( message.is_ack() ? "ACK" : "DATA" )

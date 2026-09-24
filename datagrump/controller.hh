@@ -9,8 +9,9 @@ class Controller
 {
 private:
   bool debug_; /* Enables debugging output */
-
-  /* Add member variables here */
+  unsigned int window_size_;
+  bool has_last_ack_;
+  uint64_t last_ack_;
 
 public:
   /* Public interface for the congestion controller */
