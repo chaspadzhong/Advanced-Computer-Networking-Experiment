@@ -32,22 +32,19 @@ int main( int argc, char *argv[] )
   cerr << "Listening on " << socket.local_address().to_string() << endl;
 
   uint64_t sequence_number = 0;
-  const uint64_t ack_interval = 2;
-  uint64_t packets_since_last_ack = 0;
-  uint64_t next_expected_sequence_number = 0;
-  uint64_t last_in_order_sequence_number = uint64_t( -1 );
+  uint64_t should_ack_num = 0;
 
-  /* Loop and acknowledge every two incoming datagrams back to their source */
+  /* Loop and acknowledge every incoming datagram back to its source */
   while ( true ) {
     const UDPSocket::received_datagram recd = socket.recv();
     ContestMessage message = recd.payload;
 
-    if ( message.header.sequence_number == next_expected_sequence_number ) {
-      last_in_order_sequence_number = message.header.sequence_number;
-      next_expected_sequence_number++;
+    if ( message.header.sequence_number == should_ack_num ) {
+      should_ack_num++;
     } else {
       /* Acknowledge the last contiguous packet to create a duplicate ACK. */
-      message.header.sequence_number = last_in_order_sequence_number;
+      message.header.sequence_number = should_ack_num == 0
+        ? 0 : should_ack_num - 1;
     }
 
     // cerr << "Received message: message_type="
@@ -56,12 +53,6 @@ int main( int argc, char *argv[] )
     //      << ", send_timestamp=" << message.header.send_timestamp
     //      << ", payload_length=" << message.payload.length()
     //      << endl;
-
-    packets_since_last_ack++;
-
-    if ( packets_since_last_ack < ack_interval ) {
-      continue;
-    }
 
     /* assemble the acknowledgment */
     message.transform_into_ack( sequence_number++, recd.timestamp );
@@ -72,7 +63,6 @@ int main( int argc, char *argv[] )
     /* send the ack */
     socket.sendto( recd.source_address, message.to_string() );
 
-    packets_since_last_ack = 0;
   }
 
   return EXIT_SUCCESS;

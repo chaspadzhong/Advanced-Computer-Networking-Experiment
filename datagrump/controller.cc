@@ -39,7 +39,7 @@ void Controller::datagram_was_sent( const uint64_t sequence_number,
       window_size_ /= 2;
     }
 
-    cout << "time out, window size=" << window_size_ << endl;
+    cout << "time out" << endl;
   }
 
   if ( debug_ ) {
@@ -60,10 +60,8 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
 {
   /* Default: take no action */
 
-  cout << "num_acked:" << sequence_number_acked << endl;
-
   if ( has_last_ack_ and sequence_number_acked == last_ack_ ) {
-    cout << "got same ack " << sequence_number_acked << endl;
+    cout << "got same ack:" << sequence_number_acked << endl;
   }
 
   last_ack_ = sequence_number_acked;
