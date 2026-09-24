@@ -25,8 +25,14 @@ ContestMessage::Header::Header( const string & str )
     ack_sequence_number( get_header_field( 2, str ) ),
     ack_send_timestamp( get_header_field( 3, str ) ),
     ack_recv_timestamp( get_header_field( 4, str ) ),
-    ack_payload_length( get_header_field( 5, str ) )
-{}
+    ack_payload_length( get_header_field( 5, str ) ),
+    message_type( static_cast<MessageType>( get_header_field( 6, str ) ) )
+{
+  if ( message_type != MessageType::DATA
+       and message_type != MessageType::ACK ) {
+    throw runtime_error( "invalid contest message type" );
+  }
+}
 
 /* Parse incoming message from wire */
 ContestMessage::ContestMessage( const string & str )
@@ -56,7 +62,8 @@ string ContestMessage::Header::to_string() const
     + put_header_field( ack_sequence_number )
     + put_header_field( ack_send_timestamp )
     + put_header_field( ack_recv_timestamp )
-    + put_header_field( ack_payload_length );
+    + put_header_field( ack_payload_length )
+    + put_header_field( static_cast<uint64_t>( message_type ) );
 }
 
 /* Make wire representation of message */
@@ -79,6 +86,7 @@ void ContestMessage::transform_into_ack( const uint64_t sequence_number,
   header.ack_send_timestamp = header.send_timestamp;
   header.ack_recv_timestamp = recv_timestamp;
   header.ack_payload_length = payload.length();
+  header.message_type = MessageType::ACK;
 
   /* delete the payload */
   payload.clear();
@@ -98,11 +106,12 @@ ContestMessage::Header::Header( const uint64_t s_sequence_number )
     ack_sequence_number( -1 ),
     ack_send_timestamp( -1 ),
     ack_recv_timestamp( -1 ),
-    ack_payload_length( -1 )
+    ack_payload_length( -1 ),
+    message_type( MessageType::DATA )
 {}
 
 /* Is this message an ack? */
 bool ContestMessage::is_ack() const
 {
-  return header.ack_sequence_number != uint64_t( -1 );
+  return header.message_type == MessageType::ACK;
 }

@@ -6,6 +6,11 @@
 
 struct ContestMessage
 {
+  enum class MessageType : uint64_t {
+    DATA = 0,
+    ACK = 1
+  };
+
   struct Header {
     uint64_t sequence_number;
     uint64_t send_timestamp;
@@ -14,6 +19,9 @@ struct ContestMessage
     uint64_t ack_send_timestamp;
     uint64_t ack_recv_timestamp;
     uint64_t ack_payload_length;
+
+    /* Distinguishes a data packet from an acknowledgment packet. */
+    MessageType message_type;
 
     /* Header for new message */
     Header( const uint64_t s_sequence_number );
